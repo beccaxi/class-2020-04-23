@@ -33,6 +33,44 @@ Fill out [this form](https://censoc-download.demog.berkeley.edu/) to access the 
 
 * Which four months have the highest number of deaths? Why? What does that suggest about the influence of global warming on mortality?
 
+```{r setup, cache=TRUE}
+
+raw <- read_csv("censoc_dmf_v1/censoc_dmf_v1/censoc_dmf_v1.csv", col_types = cols())
+
+summary(raw)
+```
+
+
+```{r scene1, echo=FALSE}
+
+# Bad data?? bmonth = 0 (supposed to start at 1)
+
+raw <- raw %>% 
+  filter(bmonth != 0)
+
+# more than 5.7 million men
+
+raw <- raw %>% 
+  mutate(age = dyear - byear) %>% 
+  arrange(desc(age))
+
+# oldest man was 123 years old, born in 1860
+
+raw %>% 
+  group_by(byear) %>% 
+  summarize(mean_age = mean(age)) 
+
+# 1854 and 1858 have the top two average ages at time of death...perhaps those
+# born in the years leading up to WWI would have lowest average age
+
+raw %>% 
+  group_by(dmonth) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+# January, December, March, and February have the highest number of deaths
+```
+
 
 ## Scene 2
 
@@ -44,7 +82,34 @@ Create a plot like the [one on Piazza](https://piazza.com/class/k5y1jx0s5ibe1?ci
 
 Don't try to get this working on the whole data set at once. That takes forever. Create a small data set called `small` with about 10,000 rows randomly sampled from `x` first. Use `small` for everything. Then, when the plot looks good, use `x`. 
 
+```{r scene2} 
 
+x <- raw %>% 
+  mutate(death_date = paste(dyear, dmonth, "01", sep = "-")) %>% 
+  mutate(death_date = ymd(death_date)) %>% 
+  select(death_date, age)
+
+small <- x %>% 
+  sample_n(size = 10000)
+
+deaths <- small %>% 
+  group_by(age) %>% 
+  summarize(deaths = n())
+
+plot <- deaths %>% 
+  ggplot(aes(x = age, y = deaths)) +
+    geom_col(binwidth = 2) +
+    labs(
+      title = "Number of Deaths for Each Age",
+      subtitle = "Ages at deaths in normalesque...",
+      x = "Age at Death",
+      y = "Total Number",
+      caption = "1940 US Census Mortality Data from CenSoc"
+    )
+plot
+
+# slightly skewed to the left - relationship between retirement and chance of death
+```
 
 
 ## Scene 3
@@ -57,6 +122,32 @@ Hint: If you `group_by()` first, things go faster since you don't want to manipu
 
 Although you can go back and grab `dmonth`, you don't need to! You can work just with `x` and figure out the month by using the `month()` function.
 
+```{r scene3, echo=FALSE}
+
+seasons <- small %>% 
+  mutate(dmonth = month(death_date)) %>% 
+  mutate(season = ifelse(dmonth %in% c(10, 11, 12, 1, 2, 3), "Cold", "Warm")) %>% 
+  group_by(death_date, season) %>% 
+  summarize(deaths = n())
+
+seasons_plot <- seasons %>% 
+  ggplot(aes(x = death_date, y = deaths, color = season)) +
+    geom_point() +
+    geom_line() +
+    transition_reveal(death_date) +
+    labs(
+      title = "Total Deaths Over Time",
+      subtitle = "More deaths during cold weather",
+      x = "Date of Death",
+      y = "Total"
+    ) +
+    theme_classic() +
+    theme(panel.grid = element_blank(),
+          panel.grid.major.y = element_line(color = "white"), 
+          panel.ontop = TRUE) +
+    scale_fill_discrete(guide = guide_legend("Season"))
+seasons_plot
+```
 
 
 ## Challenge Problem
